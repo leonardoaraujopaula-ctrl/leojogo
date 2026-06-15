@@ -18,27 +18,33 @@ highscoreEl.textContent = highscore;
 class Target {
   constructor() {
     this.radius = Math.max(14, 42 - currentLevel * 2.2);
+    this.resetPosition(); // Posição inicial aleatória
+    
+    // Velocidade boa e visível
+    this.vx = (Math.random() * 5 + 3.5) * (Math.random() < 0.5 ? 1 : -1);
+    this.vy = (Math.random() * 5 + 3.5) * (Math.random() < 0.5 ? 1 : -1);
+    
+    this.life = 130;
+    this.points = Math.floor(130 / this.radius * 9);
+  }
+
+  resetPosition() {
     this.x = this.radius + Math.random() * (canvas.width - this.radius * 2);
     this.y = this.radius + Math.random() * (canvas.height - this.radius * 2);
-    
-    // Velocidade maior e mais visível
-    this.vx = (Math.random() * 5.5 + 3.5) * (Math.random() < 0.5 ? 1 : -1);
-    this.vy = (Math.random() * 5.5 + 3.5) * (Math.random() < 0.5 ? 1 : -1);
-    
-    this.life = 140;
-    this.points = Math.floor(130 / this.radius * 9);
   }
 
   update() {
     this.x += this.vx;
     this.y += this.vy;
 
-    // Quicar nas paredes com mais força
-    if (this.x - this.radius < 0 || this.x + this.radius > canvas.width) {
-      this.vx *= -1.05;
-    }
-    if (this.y - this.radius < 0 || this.y + this.radius > canvas.height) {
-      this.vy *= -1.05;
+    // Se bater na parede → some e reaparece em outro lugar
+    if (this.x - this.radius < 0 || this.x + this.radius > canvas.width ||
+        this.y - this.radius < 0 || this.y + this.radius > canvas.height) {
+      this.resetPosition();
+      
+      // Muda um pouco a direção ao reaparecer
+      this.vx = (Math.random() * 5 + 3.5) * (Math.random() < 0.5 ? 1 : -1);
+      this.vy = (Math.random() * 5 + 3.5) * (Math.random() < 0.5 ? 1 : -1);
     }
   }
 
@@ -89,7 +95,7 @@ function draw() {
 
   for (let i = targets.length - 1; i >= 0; i--) {
     const t = targets[i];
-    t.update();        // Movimento
+    t.update();
     t.draw();
     t.life--;
 
@@ -106,7 +112,6 @@ function gameLoop() {
   requestAnimationFrame(gameLoop);
 }
 
-// Clique para atirar
 canvas.addEventListener('click', (e) => {
   if (!gameRunning) return;
 
@@ -122,10 +127,9 @@ canvas.addEventListener('click', (e) => {
       score += t.points;
       scoreEl.textContent = score;
 
-      // Efeito de explosão
       ctx.fillStyle = '#ffff00';
       ctx.beginPath();
-      ctx.arc(clickX, clickY, t.radius * 1.5, 0, Math.PI * 2);
+      ctx.arc(clickX, clickY, t.radius * 1.6, 0, Math.PI * 2);
       ctx.fill();
 
       targets.splice(i, 1);
