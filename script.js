@@ -11,21 +11,19 @@ let timeLeft = 60;
 let currentLevel = 1;
 let gameRunning = false;
 let targets = [];
+let particles = [];
 let timer;
 let highscore = localStorage.getItem('highscore') || 0;
 highscoreEl.textContent = highscore;
 
 class Target {
   constructor() {
-    this.radius = Math.max(14, 42 - currentLevel * 2.2);
-    this.resetPosition(); // Posição inicial aleatória
-    
-    // Velocidade boa e visível
-    this.vx = (Math.random() * 5 + 3.5) * (Math.random() < 0.5 ? 1 : -1);
-    this.vy = (Math.random() * 5 + 3.5) * (Math.random() < 0.5 ? 1 : -1);
-    
-    this.life = 130;
-    this.points = Math.floor(130 / this.radius * 9);
+    this.radius = Math.max(16, 40 - currentLevel * 2);
+    this.resetPosition();
+    this.vx = (Math.random() * 5 + 3.8) * (Math.random() < 0.5 ? 1 : -1);
+    this.vy = (Math.random() * 5 + 3.8) * (Math.random() < 0.5 ? 1 : -1);
+    this.life = 135;
+    this.points = Math.floor(140 / this.radius * 9);
   }
 
   resetPosition() {
@@ -37,44 +35,80 @@ class Target {
     this.x += this.vx;
     this.y += this.vy;
 
-    // Se bater na parede → some e reaparece em outro lugar
     if (this.x - this.radius < 0 || this.x + this.radius > canvas.width ||
         this.y - this.radius < 0 || this.y + this.radius > canvas.height) {
       this.resetPosition();
-      
-      // Muda um pouco a direção ao reaparecer
-      this.vx = (Math.random() * 5 + 3.5) * (Math.random() < 0.5 ? 1 : -1);
-      this.vy = (Math.random() * 5 + 3.5) * (Math.random() < 0.5 ? 1 : -1);
+      this.vx = (Math.random() * 5 + 3.8) * (Math.random() < 0.5 ? 1 : -1);
+      this.vy = (Math.random() * 5 + 3.8) * (Math.random() < 0.5 ? 1 : -1);
     }
   }
 
   draw() {
+    // Círculos concêntricos (bullseye)
     ctx.save();
+    ctx.shadowBlur = 35;
+    ctx.shadowColor = '#ff0000';
+
+    // Círculo externo
     ctx.beginPath();
     ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
     ctx.fillStyle = '#ff2222';
-    ctx.shadowBlur = 30;
-    ctx.shadowColor = '#ff0000';
     ctx.fill();
     ctx.strokeStyle = '#ffffff';
-    ctx.lineWidth = 6;
+    ctx.lineWidth = 7;
     ctx.stroke();
+
+    // Círculo médio
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.radius * 0.65, 0, Math.PI * 2);
+    ctx.fillStyle = '#ff8800';
+    ctx.fill();
+    ctx.stroke();
+
+    // Centro
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.radius * 0.3, 0, Math.PI * 2);
+    ctx.fillStyle = '#ffff00';
+    ctx.fill();
     ctx.restore();
   }
 }
 
-function getSpawnRate() {
-  return Math.max(220, 1050 - currentLevel * 75);
+class Particle {
+  constructor(x, y) {
+    this.x = x;
+    this.y = y;
+    this.size = Math.random() * 8 + 5;
+    this.vx = Math.random() * 10 - 5;
+    this.vy = Math.random() * 10 - 5;
+    this.life = 25;
+    this.color = ['#ffff00', '#ff8800', '#ff2222'][Math.floor(Math.random()*3)];
+  }
+
+  update() {
+    this.x += this.vx;
+    this.y += this.vy;
+    this.life--;
+    this.vx *= 0.96;
+    this.vy *= 0.96;
+  }
+
+  draw() {
+    ctx.save();
+    ctx.globalAlpha = this.life / 25;
+    ctx.fillStyle = this.color;
+    ctx.fillRect(this.x, this.y, this.size, this.size);
+    ctx.restore();
+  }
 }
 
 function spawnTarget() {
   if (!gameRunning) return;
-  
   targets.push(new Target());
   
   const maxTargets = 4 + Math.floor(currentLevel / 2);
   if (targets.length < maxTargets) {
-    setTimeout(spawnTarget, getSpawnRate());
+    setTimeout(spawnTarget, Math.max(200, 1000 - currentLevel * 75));
   }
 }
 
@@ -86,22 +120,42 @@ function updateLevel() {
     
     const container = document.getElementById('game-container');
     container.style.borderColor = '#00ff00';
-    setTimeout(() => { container.style.borderColor = '#ffd700'; }, 600);
+    setTimeout(() => container.style.borderColor = '#ffd700', 800);
+  }
+}
+
+function drawBackground() {
+  ctx.fillStyle = '#0a3d0a';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  
+  // Linhas do chão (estilo estande de tiro)
+  ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+  ctx.lineWidth = 3;
+  for (let i = 50; i < canvas.height; i += 40) {
+    ctx.beginPath();
+    ctx.moveTo(0, i);
+    ctx.lineTo(canvas.width, i);
+    ctx.stroke();
   }
 }
 
 function draw() {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  drawBackground();
 
   for (let i = targets.length - 1; i >= 0; i--) {
     const t = targets[i];
     t.update();
     t.draw();
     t.life--;
+    if (t.life <= 0) targets.splice(i, 1);
+  }
 
-    if (t.life <= 0) {
-      targets.splice(i, 1);
-    }
+  // Partículas
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const p = particles[i];
+    p.update();
+    p.draw();
+    if (p.life <= 0) particles.splice(i, 1);
   }
 }
 
@@ -112,6 +166,7 @@ function gameLoop() {
   requestAnimationFrame(gameLoop);
 }
 
+// Clique
 canvas.addEventListener('click', (e) => {
   if (!gameRunning) return;
 
@@ -127,10 +182,10 @@ canvas.addEventListener('click', (e) => {
       score += t.points;
       scoreEl.textContent = score;
 
-      ctx.fillStyle = '#ffff00';
-      ctx.beginPath();
-      ctx.arc(clickX, clickY, t.radius * 1.6, 0, Math.PI * 2);
-      ctx.fill();
+      // Partículas de explosão
+      for (let j = 0; j < 18; j++) {
+        particles.push(new Particle(clickX, clickY));
+      }
 
       targets.splice(i, 1);
       return;
@@ -142,10 +197,7 @@ canvas.addEventListener('click', (e) => {
 });
 
 function startGame() {
-  score = 0;
-  timeLeft = 60;
-  currentLevel = 1;
-  targets = [];
+  score = 0; timeLeft = 60; currentLevel = 1; targets = []; particles = [];
   
   scoreEl.textContent = '0';
   timeEl.textContent = '60';
