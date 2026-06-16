@@ -1,234 +1,220 @@
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
 const scoreEl = document.getElementById('score');
-const timeEl = document.getElementById('time');
-const levelEl = document.getElementById('level');
+const livesEl = document.getElementById('lives');
 const highscoreEl = document.getElementById('highscore');
 const startBtn = document.getElementById('startBtn');
 
 let score = 0;
-let timeLeft = 60;
-let currentLevel = 1;
+let lives = 3;
 let gameRunning = false;
-let targets = [];
-let particles = [];
-let timer;
-let highscore = localStorage.getItem('highscore') || 0;
+let player, bullets = [], enemies = [], particles = [];
+let keys = {};
+let highscore = localStorage.getItem('shooterHighscore') || 0;
 highscoreEl.textContent = highscore;
 
-class Target {
+class Player {
   constructor() {
-    this.radius = Math.max(16, 40 - currentLevel * 2);
-    this.resetPosition();
-    this.vx = (Math.random() * 5 + 3.8) * (Math.random() < 0.5 ? 1 : -1);
-    this.vy = (Math.random() * 5 + 3.8) * (Math.random() < 0.5 ? 1 : -1);
-    this.life = 135;
-    this.points = Math.floor(140 / this.radius * 9);
-  }
-
-  resetPosition() {
-    this.x = this.radius + Math.random() * (canvas.width - this.radius * 2);
-    this.y = this.radius + Math.random() * (canvas.height - this.radius * 2);
-  }
-
-  update() {
-    this.x += this.vx;
-    this.y += this.vy;
-
-    if (this.x - this.radius < 0 || this.x + this.radius > canvas.width ||
-        this.y - this.radius < 0 || this.y + this.radius > canvas.height) {
-      this.resetPosition();
-      this.vx = (Math.random() * 5 + 3.8) * (Math.random() < 0.5 ? 1 : -1);
-      this.vy = (Math.random() * 5 + 3.8) * (Math.random() < 0.5 ? 1 : -1);
-    }
+    this.width = 50;
+    this.height = 40;
+    this.x = canvas.width / 2 - this.width / 2;
+    this.y = canvas.height - 60;
+    this.speed = 7;
   }
 
   draw() {
-    // Círculos concêntricos (bullseye)
-    ctx.save();
-    ctx.shadowBlur = 35;
-    ctx.shadowColor = '#ff0000';
+    ctx.fillStyle = '#00ffff';
+    ctx.fillRect(this.x, this.y, this.width, this.height);
+    ctx.fillStyle = '#00ffaa';
+    ctx.fillRect(this.x + 10, this.y - 15, this.width - 20, 25); // cabine
+  }
 
-    // Círculo externo
-    ctx.beginPath();
-    ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
-    ctx.fillStyle = '#ff2222';
-    ctx.fill();
-    ctx.strokeStyle = '#ffffff';
-    ctx.lineWidth = 7;
-    ctx.stroke();
+  update() {
+    if (keys['ArrowLeft'] || keys['a'] || keys['A']) this.x -= this.speed;
+    if (keys['ArrowRight'] || keys['d'] || keys['D']) this.x += this.speed;
 
-    // Círculo médio
-    ctx.beginPath();
-    ctx.arc(this.x, this.y, this.radius * 0.65, 0, Math.PI * 2);
-    ctx.fillStyle = '#ff8800';
-    ctx.fill();
-    ctx.stroke();
-
-    // Centro
-    ctx.beginPath();
-    ctx.arc(this.x, this.y, this.radius * 0.3, 0, Math.PI * 2);
-    ctx.fillStyle = '#ffff00';
-    ctx.fill();
-    ctx.restore();
+    if (this.x < 0) this.x = 0;
+    if (this.x + this.width > canvas.width) this.x = canvas.width - this.width;
   }
 }
 
-class Particle {
+class Bullet {
   constructor(x, y) {
     this.x = x;
     this.y = y;
-    this.size = Math.random() * 8 + 5;
-    this.vx = Math.random() * 10 - 5;
-    this.vy = Math.random() * 10 - 5;
-    this.life = 25;
-    this.color = ['#ffff00', '#ff8800', '#ff2222'][Math.floor(Math.random()*3)];
+    this.width = 6;
+    this.height = 18;
+    this.speed = 12;
   }
 
   update() {
-    this.x += this.vx;
-    this.y += this.vy;
-    this.life--;
-    this.vx *= 0.96;
-    this.vy *= 0.96;
+    this.y -= this.speed;
   }
 
   draw() {
-    ctx.save();
-    ctx.globalAlpha = this.life / 25;
-    ctx.fillStyle = this.color;
-    ctx.fillRect(this.x, this.y, this.size, this.size);
-    ctx.restore();
+    ctx.fillStyle = '#ffff00';
+    ctx.fillRect(this.x, this.y, this.width, this.height);
   }
 }
 
-function spawnTarget() {
-  if (!gameRunning) return;
-  targets.push(new Target());
-  
-  const maxTargets = 4 + Math.floor(currentLevel / 2);
-  if (targets.length < maxTargets) {
-    setTimeout(spawnTarget, Math.max(200, 1000 - currentLevel * 75));
+class Enemy {
+  constructor() {
+    this.width = 45;
+    this.height = 35;
+    this.x = Math.random() * (canvas.width - this.width);
+    this.y = -50;
+    this.speed = 2 + Math.random() * 2;
+  }
+
+  update() {
+    this.y += this.speed;
+  }
+
+  draw() {
+    ctx.fillStyle = '#ff0088';
+    ctx.fillRect(this.x, this.y, this.width, this.height);
+    ctx.fillStyle = '#ff88cc';
+    ctx.fillRect(this.x + 10, this.y + 8, this.width - 20, 15);
   }
 }
 
-function updateLevel() {
-  const newLevel = Math.min(10, Math.floor(score / 140) + 1);
-  if (newLevel > currentLevel) {
-    currentLevel = newLevel;
-    levelEl.textContent = currentLevel;
-    
-    const container = document.getElementById('game-container');
-    container.style.borderColor = '#00ff00';
-    setTimeout(() => container.style.borderColor = '#ffd700', 800);
-  }
-}
-
-function drawBackground() {
-  ctx.fillStyle = '#0a3d0a';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-  
-  // Linhas do chão (estilo estande de tiro)
-  ctx.strokeStyle = 'rgba(255,255,255,0.1)';
-  ctx.lineWidth = 3;
-  for (let i = 50; i < canvas.height; i += 40) {
-    ctx.beginPath();
-    ctx.moveTo(0, i);
-    ctx.lineTo(canvas.width, i);
-    ctx.stroke();
+function createExplosion(x, y) {
+  for (let i = 0; i < 15; i++) {
+    particles.push({
+      x: x,
+      y: y,
+      vx: Math.random() * 8 - 4,
+      vy: Math.random() * 8 - 4,
+      life: 25,
+      color: '#ff8800'
+    });
   }
 }
 
 function draw() {
-  drawBackground();
+  ctx.fillStyle = '#000022';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  for (let i = targets.length - 1; i >= 0; i--) {
-    const t = targets[i];
-    t.update();
-    t.draw();
-    t.life--;
-    if (t.life <= 0) targets.splice(i, 1);
+  // Estrelas de fundo (simples)
+  ctx.fillStyle = 'white';
+  for (let i = 0; i < 80; i++) {
+    ctx.fillRect((i * 37) % canvas.width, (i * 23) % canvas.height, 2, 2);
+  }
+
+  player.update();
+  player.draw();
+
+  // Bullets
+  for (let i = bullets.length - 1; i >= 0; i--) {
+    const b = bullets[i];
+    b.update();
+    b.draw();
+    if (b.y < 0) bullets.splice(i, 1);
+  }
+
+  // Enemies
+  for (let i = enemies.length - 1; i >= 0; i--) {
+    const e = enemies[i];
+    e.update();
+    e.draw();
+
+    // Colisão com jogador
+    if (e.y + e.height > player.y && 
+        e.x < player.x + player.width && 
+        e.x + e.width > player.x) {
+      lives--;
+      livesEl.textContent = lives;
+      createExplosion(e.x + e.width/2, e.y + e.height/2);
+      enemies.splice(i, 1);
+      if (lives <= 0) endGame();
+      continue;
+    }
+
+    // Colisão com tiros
+    for (let j = bullets.length - 1; j >= 0; j--) {
+      const b = bullets[j];
+      if (b.x < e.x + e.width && b.x + b.width > e.x &&
+          b.y < e.y + e.height && b.y + b.height > e.y) {
+        score += 20;
+        scoreEl.textContent = score;
+        createExplosion(e.x + e.width/2, e.y + e.height/2);
+        enemies.splice(i, 1);
+        bullets.splice(j, 1);
+        break;
+      }
+    }
+
+    if (e.y > canvas.height) enemies.splice(i, 1);
   }
 
   // Partículas
   for (let i = particles.length - 1; i >= 0; i--) {
     const p = particles[i];
-    p.update();
-    p.draw();
+    p.x += p.vx;
+    p.y += p.vy;
+    p.life--;
+    ctx.globalAlpha = p.life / 25;
+    ctx.fillStyle = p.color;
+    ctx.fillRect(p.x, p.y, 6, 6);
     if (p.life <= 0) particles.splice(i, 1);
   }
+  ctx.globalAlpha = 1;
 }
 
 function gameLoop() {
   if (!gameRunning) return;
   draw();
-  updateLevel();
   requestAnimationFrame(gameLoop);
 }
 
-// Clique
-canvas.addEventListener('click', (e) => {
+function spawnEnemy() {
   if (!gameRunning) return;
+  enemies.push(new Enemy());
+  setTimeout(spawnEnemy, Math.max(400, 1200 - score / 3));
+}
 
-  const rect = canvas.getBoundingClientRect();
-  const clickX = e.clientX - rect.left;
-  const clickY = e.clientY - rect.top;
+// Controles
+window.addEventListener('keydown', e => keys[e.key] = true);
+window.addEventListener('keyup', e => keys[e.key] = false);
 
-  for (let i = targets.length - 1; i >= 0; i--) {
-    const t = targets[i];
-    const dist = Math.hypot(t.x - clickX, t.y - clickY);
+canvas.addEventListener('click', () => {
+  if (gameRunning) bullets.push(new Bullet(player.x + player.width/2 - 3, player.y));
+});
 
-    if (dist < t.radius + 10) {
-      score += t.points;
-      scoreEl.textContent = score;
-
-      // Partículas de explosão
-      for (let j = 0; j < 18; j++) {
-        particles.push(new Particle(clickX, clickY));
-      }
-
-      targets.splice(i, 1);
-      return;
-    }
+document.addEventListener('keydown', e => {
+  if (e.key === ' ' && gameRunning) {
+    bullets.push(new Bullet(player.x + player.width/2 - 3, player.y));
+    e.preventDefault();
   }
-
-  score = Math.max(0, score - 10);
-  scoreEl.textContent = score;
 });
 
 function startGame() {
-  score = 0; timeLeft = 60; currentLevel = 1; targets = []; particles = [];
+  score = 0;
+  lives = 3;
+  bullets = [];
+  enemies = [];
+  particles = [];
   
   scoreEl.textContent = '0';
-  timeEl.textContent = '60';
-  levelEl.textContent = '1';
+  livesEl.textContent = '3';
   gameRunning = true;
+  
+  player = new Player();
   
   startBtn.style.display = 'none';
   
-  spawnTarget();
+  spawnEnemy();
   gameLoop();
-
-  timer = setInterval(() => {
-    timeLeft--;
-    timeEl.textContent = timeLeft;
-    if (timeLeft <= 0) endGame();
-  }, 1000);
 }
 
 function endGame() {
   gameRunning = false;
-  clearInterval(timer);
-  
   if (score > highscore) {
     highscore = score;
-    localStorage.setItem('highscore', highscore);
+    localStorage.setItem('shooterHighscore', highscore);
     highscoreEl.textContent = highscore;
-    alert(`🎉 NOVO RECORDE! Nível ${currentLevel} → ${score} pontos`);
-  } else {
-    alert(`⏰ Tempo acabou! Nível ${currentLevel} - Pontos: ${score}`);
   }
-  
+  alert(`Game Over! Pontuação: ${score}`);
   startBtn.textContent = "Jogar Novamente";
   startBtn.style.display = 'inline-block';
 }
