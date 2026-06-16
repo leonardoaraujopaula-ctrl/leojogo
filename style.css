@@ -5,30 +5,26 @@
 }
 
 body {
-  font-family: 'Arial Black', Arial, sans-serif;
-  background: linear-gradient(#0a001f, #1a0033);
+  font-family: Arial, sans-serif;
+  background: linear-gradient(#000033, #000011);
   color: white;
   text-align: center;
 }
 
 header {
-  padding: 25px;
-  background: linear-gradient(#4a00ff, #8a2be2);
-  font-size: 2.2em;
-  text-shadow: 0 0 15px rgba(138, 43, 226, 0.8);
-  letter-spacing: 3px;
+  padding: 20px;
+  background: linear-gradient(#220033, #550077);
+  font-size: 2.5em;
+  text-shadow: 0 0 20px #aa00ff;
 }
 
 .info {
   display: flex;
   justify-content: space-around;
   font-size: 26px;
-  margin: 15px 0;
-  background: rgba(26, 26, 77, 0.9);
   padding: 15px;
-  border-bottom: 3px solid #ffd700;
-  flex-wrap: wrap;
-  gap: 15px;
+  background: rgba(0, 0, 50, 0.8);
+  border-bottom: 3px solid #00ffff;
 }
 
 #game-container {
@@ -36,12 +32,11 @@ header {
   width: 800px;
   height: 500px;
   margin: 20px auto;
-  background: #0a3d0a;
-  border: 10px solid #ffd700;
-  border-radius: 15px;
+  background: #000022;
+  border: 6px solid #00ffff;
+  border-radius: 10px;
   overflow: hidden;
-  box-shadow: 0 0 40px rgba(255, 215, 0, 0.6);
-  cursor: crosshair;
+  box-shadow: 0 0 30px #00ffff;
 }
 
 canvas {
@@ -49,20 +44,17 @@ canvas {
 }
 
 button {
-  padding: 18px 50px;
-  font-size: 24px;
-  font-weight: bold;
-  background: linear-gradient(#ff2222, #cc0000);
+  padding: 15px 40px;
+  font-size: 22px;
+  background: #ff00aa;
   color: white;
   border: none;
-  border-radius: 12px;
+  border-radius: 10px;
   cursor: pointer;
   margin: 20px;
-  box-shadow: 0 8px 15px rgba(0, 0, 0, 0.4);
-  transition: all 0.3s;
 }
 
 button:hover {
-  transform: scale(1.08) translateY(-3px);
-  box-shadow: 0 12px 20px rgba(255, 50, 50, 0.5);
+  background: #ff44cc;
+  transform: scale(1.05);
 }
